@@ -1,9 +1,21 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import functools
 
 
-def equal(x0, x1, delta=5e-2):
+def is_equal(x0, x1, delta=0.01):
     return np.max(np.abs(x0 - x1)) < delta
+
+
+def is_greater(x0, x1, delta=0.01, equal=False):
+    if equal:
+        return np.min(x0 - x1) > -delta
+    else:
+        return np.min(x0 - x1) > delta
+
+
+def is_less(x0, x1, delta=0.01, equal=False):
+    return is_greater(x1, x0, delta, equal)
 
 
 def grad(f, x, delta=1e-6):
@@ -66,18 +78,18 @@ def condition_armijo(f, x, d, tau=1e-4, beta=0.9, alpha_init=1.0):
     Returns:
         alpha (float): アルミホ条件中の\alpha
     """
-    g = lambda alpha: f(x + alpha * d)
+    g = functools.partial(lambda f,x,d,alpha: f(x + alpha * d), f, x, d)
     g0 = f(x)
     grad_g0 = grad(f, x).T @ d
 
     alpha = alpha_init
     # アルミホ条件を満たす最大の\alpha
-    while not equal(alpha, 0) and g(alpha) > g0 + tau * grad_g0 * alpha:
+    while not is_equal(alpha, 0) and g(alpha) > g0 + tau * grad_g0 * alpha:
         alpha *= beta
 
     # アルミホ条件を満たす\alphaのうち、g(\alpha)が最小になる\alpha
     new_alpha = beta * alpha
-    while not equal(alpha, 0) and g(new_alpha) < g(alpha):
+    while not is_equal(alpha, 0) and g(new_alpha) < g(alpha):
         alpha = new_alpha
         new_alpha *= beta
 
@@ -99,20 +111,20 @@ def condition_wolfe(f, x, d, tau1=1e-4, tau2=0.5, beta=0.9, alpha_init=1.0):
     Returns:
         alpha (float): ウルフ条件中の\alpha
     """
-    g = lambda alpha: f(x + alpha * d)
+    g = functools.partial(lambda f,x,d,alpha: f(x + alpha * d), f, x, d)
     g0 = f(x)
     grad_g0 = (grad(f, x).T @ d).item()
 
     alpha = alpha_init
     # ウルフ条件を満たす最大の\alpha
-    grad_g = lambda alpha: (grad(f, x+alpha*d).T @ d).item()
+    grad_g = functools.partial(lambda f,x,d,alpha: (grad(f, x+alpha*d).T @ d).item(), f, x, d)
 
-    while not equal(alpha, 0) and g(alpha) > g0 + tau1 * grad_g0 * alpha and grad_g(alpha) > tau2 * grad_g0:
+    while not is_equal(alpha, 0) and g(alpha) > g0 + tau1 * grad_g0 * alpha and grad_g(alpha) > tau2 * grad_g0:
         alpha *= beta
 
     # ウルフ条件を満たす\alphaのうち、g(\alpha)が最小になる\alpha
     new_alpha = beta * alpha
-    while not equal(alpha, 0) and g(new_alpha) < g(alpha) and grad_g(new_alpha) > tau2 * grad_g0:
+    while not is_equal(alpha, 0) and g(new_alpha) < g(alpha) and grad_g(new_alpha) > tau2 * grad_g0:
         alpha = new_alpha
         new_alpha *= beta
 
